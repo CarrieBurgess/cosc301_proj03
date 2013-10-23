@@ -35,6 +35,22 @@ void *malloc(size_t request_size) {
         heap_begin = mmap(NULL, HEAPSIZE, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
         atexit(dump_memory_map);
     }
+    if(request_size==0 || request_size==NULL) {
+    	printf("Please enter a valid size.\n");
+    	return;
+    }
+    request_size = request_size+8; //add 8 bits
+    int i = 0;
+    while((2^i)<=request_size) {
+    	i++;
+    }
+    request_size = (2^i);
+    
+    
+    	
+    /*
+    
+    */
 
 
 }
