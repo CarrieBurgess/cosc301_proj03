@@ -52,27 +52,27 @@ void *malloc(size_t request_size) {
     // time that malloc has been called.  ask for a new
     // heap segment from the OS using mmap and initialize
     // the heap begin pointer.
+   if(request_size==0) {
+    	printf("Please enter a valid size.\n");
+    	return NULL;
+    }
     if (!heap_begin) {
         heap_begin = mmap(NULL, HEAPSIZE, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+		
         atexit(dump_memory_map);
         write_header(heap_begin, (1024*1024), 0);
         first_free = heap_begin;
     }
-    if(request_size==0) {
-    	printf("Please enter a valid size.\n");
-    	return;
-    }
     request_size = request_size+8; //add 8 bits
     int i = 0;
-    while((2^i)<=request_size) {
+	int pow = 1;
+    while(pow<request_size) { 
+		pow = pow*2;
     	i++;
-    }
-    request_size = (2^i);
-    
-    
-    	
-
-
+    } 
+    request_size = pow;
+	printf("size %d\n",(int) request_size);
+   
 }
 
 void free(void *memory_block) {
