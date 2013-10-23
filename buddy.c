@@ -1,3 +1,12 @@
+/*
+
+Title: Project 03
+Purpose: to recreate malloc and free utilizing the buddy system
+Masterminds: Shreeya Khadka, the Robot from Pluto, and Carrie Burgess, an evil world ruler
+Date of world domination (when due): 4 November 2013
+
+*/
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -24,6 +33,14 @@ const int MINIMUM_ALLOC = sizeof(int) * 2;
 // of the beginning of the heap.
 void *heap_begin = NULL;
 
+struct node() {
+	int size;
+	//can we have a char to record if node is free or malloced?  Or would that
+	//push over the 8 bits?
+	int offset;
+};
+	
+
 
 void *malloc(size_t request_size) {
 
@@ -48,9 +65,6 @@ void *malloc(size_t request_size) {
     
     
     	
-    /*
-    
-    */
 
 
 }

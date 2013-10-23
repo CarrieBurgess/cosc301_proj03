@@ -1,3 +1,12 @@
+/*
+
+Title: Project 03
+Purpose: to recreate malloc and free utilizing the buddy system
+Masterminds: Shreeya Khadka, the Robot from Pluto, and Carrie Burgess, an evil world ruler
+Date of world domination (when due): 4 November 2013
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
