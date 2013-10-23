@@ -32,16 +32,20 @@ const int MINIMUM_ALLOC = sizeof(int) * 2;
 // global file-scope variables for keeping track
 // of the beginning of the heap.
 void *heap_begin = NULL;
+void *first_free = NULL;
 
-struct node() {
-	int size;
-	//can we have a char to record if node is free or malloced?  Or would that
-	//push over the 8 bits?
-	int offset;
-};
+void write_header(void *p, int size, int offset) { 
+	*((int*)(p)) = size;
+	*((int*)(p)+1)=offset;
+}
+
+void read_header(void*p, int * size, int * offset) { 
+//we are assuming size and offset will be declared on the heap, and that the pointer to the chunk
+//starts before the header
+	*size = *((int *)(p));
+	*offset = *((int *)(p) + 1);
+}
 	
-
-
 void *malloc(size_t request_size) {
 
     // if heap_begin is NULL, then this must be the first
@@ -51,8 +55,10 @@ void *malloc(size_t request_size) {
     if (!heap_begin) {
         heap_begin = mmap(NULL, HEAPSIZE, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
         atexit(dump_memory_map);
+        write_header(heap_begin, (1024*1024), 0);
+        first_free = heap_begin;
     }
-    if(request_size==0 || request_size==NULL) {
+    if(request_size==0) {
     	printf("Please enter a valid size.\n");
     	return;
     }
@@ -70,10 +76,12 @@ void *malloc(size_t request_size) {
 }
 
 void free(void *memory_block) {
-
+	
 }
 
 void dump_memory_map(void) {
-
+	int size;
+	int offset;
+	read_header(pointer, &size, &offset);
 }
 
