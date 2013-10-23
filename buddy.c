@@ -33,7 +33,7 @@ const int MINIMUM_ALLOC = sizeof(int) * 2;
 // of the beginning of the heap.
 void *heap_begin = NULL;
 
-struct node() {
+struct node{
 	int size;
 	//can we have a char to record if node is free or malloced?  Or would that
 	//push over the 8 bits?
@@ -48,25 +48,26 @@ void *malloc(size_t request_size) {
     // time that malloc has been called.  ask for a new
     // heap segment from the OS using mmap and initialize
     // the heap begin pointer.
+   if(request_size==0) {
+    	printf("Please enter a valid size.\n");
+    	return NULL;
+    }
     if (!heap_begin) {
         heap_begin = mmap(NULL, HEAPSIZE, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+		
         atexit(dump_memory_map);
     }
-    if(request_size==0 || request_size==NULL) {
-    	printf("Please enter a valid size.\n");
-    	return;
-    }
+ 
     request_size = request_size+8; //add 8 bits
     int i = 0;
-    while((2^i)<=request_size) {
+	int pow = 1;
+    while(pow<request_size) { 
+		pow = pow*2;
     	i++;
-    }
-    request_size = (2^i);
-    
-    
-    	
-
-
+    } 
+    request_size = pow;
+	printf("size %d\n",(int) request_size);
+   
 }
 
 void free(void *memory_block) {
