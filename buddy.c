@@ -117,7 +117,53 @@ void *malloc(size_t request_size) {
 }
 
 void free(void *memory_block) {
-			
+	if (memory_block==NULL) return;
+//find the matching block in heap
+	int size;
+	int offset;
+	void *elem = heap_begin;
+	int position = 0; 
+	int total = 0;
+	while(total<HEAPSIZE) {
+		read_header(elem, &size, &offset);
+		if (elem==memory_block) {
+			position = total;
+			break;
+		}
+		elem = elem + size;
+		total = total + size;
+	}
+	if (!position) return; //no match else match is (heap_begin+position)
+//next update the free list
+	read_header(first_free, &size, &offset);
+	int displacement = (char*)first_free - (char*)memory_block;
+	if (displacement==0) return; //already free
+	if (displacement>0) {//have to update first_free 
+		*(((int *)memory_block)+1) = displacement; //update offset of memory block
+			first_free = memory_block;
+			return;   
+	}
+//have to go to right of first_free
+	if (offset == 0) {//first=last free fix to end
+		displacement = (-1)*displacement;
+		write_header(first_free, size, displacement);
+		*(((int *)memory_block)+1) = 0; //update offset of memory block
+		return;
+	}
+	void *free_list = first_free;
+	void *old_free = NULL;
+	int change = 0;
+	while (offset!=0) { 
+		old_free = free_list;
+		free_list = free_list + offset;
+		read_header(free_list, &size, &offset);
+		change = (char*)memory_block - (char*)free_list;
+		if (change==0) return; //block free
+		if (change<0) break; //block to the left of free_list, right of old_free		 
+	}
+	int old_offset = *(((int *)old_free)+1); //offset of old_free->distance to free_list
+	*(((int *)old_free)+1) = change; //offset between old_free and block
+	*(((int *)memory_block)+1) = old_offset - change; //offset between block and free_list		
 }
 
 
