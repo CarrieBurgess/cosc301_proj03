@@ -37,35 +37,74 @@ void *first_free = NULL;
 
 void write_header(void *p, int size, int offset) { 
 	*((int*)(p)) = size;
-	*((int*)(p)+1)=offset;
+	*(((int*)p)+1)=offset;
 }
 
-void read_header(void*p, int * size, int * offset) { 
+void read_header(void *p, int *size, int *offset) { 
 //we are assuming size and offset will be declared on the heap, and that the pointer to the chunk
 //starts before the header
-	*size = *((int *)(p));
-	*offset = *((int *)(p) + 1);
+	*size = *((int *)p);
+	*offset = *(((int *)p) + 1);
 }
 	
+static void *malloc_rec(int size, void *free_list) { 
+	//recursively attempt to malloc free space over the free list 
+	//if successful malloc address of malloced space else return NULL
+	if (free_list == NULL) return NULL; //base
+	int free_size = 0; 
+	int offset = 0; 
+	read_header(free_list, &free_size, &offset);
+	if (free_size==size) { //size of free chunk = size of chunk that needs to be allocated --> allocated! get rid of next offset
+			if (free_list==first_free) {//have to allocate on 1st block--happens only at the beginning
+				int first_offset;
+				int first_size;
+				read_header(first_free, &first_size, &first_offset);
+				if (first_offset!=0) { //need to update first_free
+					first_free = first_free + first_offset;
+					free_list = first_free;
+				}
+			}
+			//else called by its recursive mates 
+			return free_list; 
+		}
+	if (free_size<size) { //not enough try to allocate in next free element
+		if (offset == 0) return NULL; //no next free blocks
+		void * next = malloc_rec(size, (free_list + offset)); //check for match in next free_list element
+		if (next==NULL) return NULL; //no match found
+		else { //match found remove it from free_list
+			int next_size;
+			int next_offset;
+			read_header(next, &next_size, &next_offset);
+			write_header(free_list, free_size, offset + next_offset); //update free list
+			write_header(next, next_size, 0); //set offset of allocated stuff to 0
+			return next; //returns a non null address
+		}
+	}	
+	else { //free_size>size :: break it up!
+		free_size = free_size/2;
+		write_header(free_list, free_size, free_size);
+		if (offset>0) write_header(free_list+free_size , free_size, offset-free_size);
+		else write_header(free_list+free_size , free_size, 0);
+		return malloc_rec(size, free_list); //perform malloc_rec on new free_list
+	}		
+}
 
 void *malloc(size_t request_size) {
-
     // if heap_begin is NULL, then this must be the first
     // time that malloc has been called.  ask for a new
     // heap segment from the OS using mmap and initialize
     // the heap begin pointer.
-   if(request_size==0) {
+   if((request_size==0)||(request_size>HEAPSIZE)) {
     	printf("Please enter a valid size.\n");
     	return NULL;
     }
-    if (!heap_begin) {
+    if (!heap_begin) { //initialization 
         heap_begin = mmap(NULL, HEAPSIZE, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
-		
-        atexit(dump_memory_map);
-        write_header(heap_begin, (1024*1024), 0);
+		write_header(heap_begin, (1024*1024), 0);
         first_free = heap_begin; //this points to first free chunk, BEFORE header
+        atexit(dump_memory_map);
     }
-    request_size = request_size+8; //add 8 bits
+    request_size = request_size+8; //add 8 bytes
     int i = 0;
 	int pow = 1;
     while(pow<request_size) { 
@@ -73,10 +112,9 @@ void *malloc(size_t request_size) {
     	i++;
     } 
     request_size = pow;
-	printf("size %d\n",(int) request_size);
-	
-	
-   return NULL; //CHANGE THIS!!  Need to return pointer to allocated space (after 8 bits)
+	void *mallocked = malloc_rec((int) request_size, first_free);
+	if (mallocked == NULL) return NULL;
+   	return (mallocked+8); //else send mallocked+8 bytes 
 }
 
 void free(void *memory_block) {
@@ -86,28 +124,23 @@ void free(void *memory_block) {
 
 
 void dump_memory_map(void) {
-	printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	printf("\n~~~~~~~~~~~~~~~~~~~~~~~Memory Dump~~~~~~~~~~~~~~~~~~~~~~~~~\n\n");
 	int size;
-	int offset = 0; //difference between chunks
-	void * pointer = first_free;
-	if(pointer != heap_begin) { //deals with if malloced memory at beginning
-		int size = (char*)first_free - (char*)heap_begin;
-		printf("Block size: %d bits.  Segment is allocated.\n", size);
-	}
-	read_header(pointer, &size, &offset);
-	printf("Block size: %d bits.  Offset: %d bits.  Segment is free.\n", size, offset);
-	while(offset != 0) {
-		if(offset>size) { //for segments allocated b/w free chunks
-			size = offset-size;
-			printf("Block size: %d bits.  Segment is allocated.\n", size);
+	int offset;
+	void *free_list = first_free;
+	void *elem = heap_begin;
+	int total = 0;
+	while (total<HEAPSIZE) {
+		read_header(elem, &size, &offset);
+		if (elem==free_list) {//element is free
+			printf("Block size: %d bits. Segment is free. Total offset: %d\n", size, total);
+			free_list = free_list + offset; //next free is offset away from it
 		}
-		pointer = pointer + offset; //units should work...
-		read_header(pointer, &size, &offset);	
-		printf("Block size: %d bits.  Offset: %d bits.  Segment is free.\n", size, offset);
-	}
-	if(offset>size) { //if there is one last allocated chunk after last free chunk
-		size = offset-size;
-		printf("Block size: %d bits.  Segment is allocated.\n", size);
+		else {//element is allocated
+			printf("Block size: %d bits. Segment is allocated. Total offset: %d\n", size,total);
+		}
+		total = total + size; //offset of the next = current(offset + size)
+		elem = elem + size;
 	}
 	printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");	
 }
