@@ -35,12 +35,12 @@ const int MINIMUM_ALLOC = sizeof(int) * 2;
 void *heap_begin = NULL;
 void *first_free = NULL;
 
-void write_header(void *p, int size, int offset) { 
+static void write_header(void *p, int size, int offset) { 
 	*((int*)(p)) = size;
 	*(((int*)p)+1)=offset;
 }
 
-void read_header(void *p, int *size, int *offset) { 
+static void read_header(void *p, int *size, int *offset) { 
 //we are assuming size and offset will be declared on the heap, and that the pointer to the chunk
 //starts before the header
 	*size = *((int *)p);
@@ -94,13 +94,12 @@ void *malloc(size_t request_size) {
     // time that malloc has been called.  ask for a new
     // heap segment from the OS using mmap and initialize
     // the heap begin pointer.
-   if((request_size==0)||(request_size>HEAPSIZE)) {
-    	printf("Please enter a valid size.\n");
+   if((request_size<MINIMUM_ALLOC)||(request_size>HEAPSIZE)) { //cannot be allocated
     	return NULL;
     }
     if (!heap_begin) { //initialization 
         heap_begin = mmap(NULL, HEAPSIZE, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
-		write_header(heap_begin, (1024*1024), 0);
+		write_header(heap_begin, HEAPSIZE, 0);
         first_free = heap_begin; //this points to first free chunk, BEFORE header
         atexit(dump_memory_map);
     }
@@ -118,7 +117,7 @@ void *malloc(size_t request_size) {
 }
 
 void free(void *memory_block) {
-	
+			
 }
 
 
