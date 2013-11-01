@@ -102,6 +102,7 @@ void *malloc(size_t request_size) {
     // heap segment from the OS using mmap and initialize
     // the heap begin pointer.
    if((request_size<MINIMUM_ALLOC)||(request_size>HEAPSIZE)) { //cannot be allocated
+   	printf("Cannot be allocated.\n");
     	return NULL;
     }
     if (!heap_begin) { //initialization 
@@ -136,8 +137,9 @@ int buddy_loc(int block_size, int total) { //finds if buddy of block to be free 
 }
 
 //Carrie
-void coalesce_rec() {
-	//recursively goes through and coalesces things until nothing else can be coalesced
+void coalesce_rec() { //okay so not really recursive, but was going to do it that way,
+//so named it that way
+	// goes through and coalesces things until nothing else can be coalesced
 	void * prev_check;
 	void * check = first_free;
 	int size;
