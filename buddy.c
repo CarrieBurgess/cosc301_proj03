@@ -35,11 +35,13 @@ const int MINIMUM_ALLOC = sizeof(int) * 2;
 void *heap_begin = NULL;
 void *first_free = NULL;
 
+//Carrie
 static void write_header(void *p, int size, int offset) { 
 	*((int*)(p)) = size;
 	*(((int*)p)+1)=offset;
 }
 
+//Carrie
 static void read_header(void *p, int *size, int *offset) { 
 //we are assuming size and offset will be declared on the heap, and that the pointer to the chunk
 //starts before the header
@@ -47,6 +49,7 @@ static void read_header(void *p, int *size, int *offset) {
 	*offset = *(((int *)p) + 1);
 }
 	
+//Shreeya and ever so minorly Carrie
 static void *malloc_rec(int size, void *free_list) { 
 	//recursively attempt to malloc free space over the free list 
 	//if successful malloc address of malloced space else return NULL
@@ -60,11 +63,13 @@ static void *malloc_rec(int size, void *free_list) {
 				int first_size;
 				read_header(first_free, &first_size, &first_offset);
 				if (first_offset!=0) { //need to update first_free
+				//C: isn't this redundent? Exact same thing for last read_header
+				//that was used to enter this if statement
 					first_free = first_free + first_offset;
-					free_list = first_free;
+					//free_list = first_free;
 				}
 			}
-			//else called by its recursive mates 
+			//else called by its recursive mates
 			return free_list; 
 		}
 	if (free_size<size) { //not enough try to allocate in next free element
@@ -89,11 +94,14 @@ static void *malloc_rec(int size, void *free_list) {
 	}		
 }
 
+
+//Shreeya and Carrie
 void *malloc(size_t request_size) {
     // if heap_begin is NULL, then this must be the first
     // time that malloc has been called.  ask for a new
     // heap segment from the OS using mmap and initialize
     // the heap begin pointer.
+    printf("entering malloc\n");
    if((request_size<MINIMUM_ALLOC)||(request_size>HEAPSIZE)) { //cannot be allocated
     	return NULL;
     }
@@ -116,16 +124,30 @@ void *malloc(size_t request_size) {
    	return (mallocked+8); //else send mallocked+8 bytes 
 }
 
+//Carrie
+int buddy_loc(int block_size, int total) { //finds if buddy of block to be free is before or after block.  block_size should be size of memory_block
+	int ans = (total/block_size)%2;
+	if(ans==0) { //if even, its the first buddy
+		return 0;
+	}
+	return 1; //if odd, its the second buddy
+}
+
+
+//Shreeya and Carrie
 void free(void *memory_block) {
 	if (memory_block==NULL) return;
 //find the matching block in heap
 	int size;
 	int offset;
 	void *elem = heap_begin;
-	int position = 0; 
+	int position = -1; 
 	int total = 0;
-	while(total<HEAPSIZE) {
+	memory_block = memory_block -8; //block returned points to after header
+	while(total<HEAPSIZE) { //find the matching block
 		read_header(elem, &size, &offset);
+		//printf("Elem: %p\n", elem);
+		//printf("memory_block: %p\n", memory_block);
 		if (elem==memory_block) {
 			position = total;
 			break;
@@ -133,41 +155,70 @@ void free(void *memory_block) {
 		elem = elem + size;
 		total = total + size;
 	}
-	if (!position) return; //no match else match is (heap_begin+position)
+//	printf("entering free. memory map\n");
+//	dump_memory_map();
+	if (position==-1) { //no match else match is (heap_begin+position)
 //next update the free list
+		printf("There was no matching element found.\n");
+		//printf("location a.  memory map: \n");
+		//dump_memory_map();
+		return;
+	}	
 	read_header(first_free, &size, &offset);
-	int displacement = (char*)first_free - (char*)memory_block;
-	if (displacement==0) return; //already free
-	if (displacement>0) {//have to update first_free 
-		*(((int *)memory_block)+1) = displacement; //update offset of memory block
-			first_free = memory_block;
-			return;   
+	//int displacement = (char*)first_free - (char*)memory_block;
+	//C: I don't quite understand this line.
+	int displacement = (char*)memory_block - (char*)first_free; //how far address is from
+	//printf("First free: %p\n", first_free);
+	//printf("memory_block: %p\n", memory_block);
+	//1st free element
+	//C: isn't this the same as total?
+	//printf("Displacement: %d\n", displacement);
+	if (displacement==0) { //base case: already free
+		printf("The block has already been freed.\n");
+		//printf("location b: memory map: \n");
+		//dump_memory_map();
+		return;
+	}
+	if (displacement<0) {//base case: have to update first_free if first_free is after memory_block
+		*(((int *)memory_block)+1) = (-1)*displacement; //update offset of memory block
+		first_free = memory_block;
+		//printf("location c: memory map: \n");
+		//dump_memory_map();
+		return;   
 	}
 //have to go to right of first_free
-	if (offset == 0) {//first=last free fix to end
+	if (offset == 0) {//base case: first=last free fix to end --> first_free is the only
+	//free, so new free unit (after first_free) will become last free block
 		displacement = (-1)*displacement;
 		write_header(first_free, size, displacement);
 		*(((int *)memory_block)+1) = 0; //update offset of memory block
+		//printf("location d: memory map: \n");
+		//dump_memory_map();
 		return;
 	}
 	void *free_list = first_free;
 	void *old_free = NULL;
 	int change = 0;
-	while (offset!=0) { 
+	while (offset!=0) { //if none of the base cases, then somewhere in middle
 		old_free = free_list;
 		free_list = free_list + offset;
 		read_header(free_list, &size, &offset);
 		change = (char*)memory_block - (char*)free_list;
+		//printf("location e: memory map: \n");
+		//dump_memory_map();
 		if (change==0) return; //block free
 		if (change<0) break; //block to the left of free_list, right of old_free		 
 	}
 	int old_offset = *(((int *)old_free)+1); //offset of old_free->distance to free_list
-	*(((int *)old_free)+1) = change; //offset between old_free and block
-	*(((int *)memory_block)+1) = old_offset - change; //offset between block and free_list		
+	*(((int *)old_free)+1) = old_offset + change; //offset between old_free and block
+	*(((int *)memory_block)+1) = (-1)*change; //offset between block and free_list		
+	//printf("end of free.  Memory map: \n");
+	//dump_memory_map();
 }
 
 
 
+//Carrie and Shreeya
 void dump_memory_map(void) {
 	printf("\n~~~~~~~~~~~~~~~~~~~~~~~Memory Dump~~~~~~~~~~~~~~~~~~~~~~~~~\n\n");
 	int size;
