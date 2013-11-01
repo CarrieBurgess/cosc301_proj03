@@ -133,6 +133,46 @@ int buddy_loc(int block_size, int total) { //finds if buddy of block to be free 
 	return 1; //if odd, its the second buddy
 }
 
+//Carrie
+void coalesce_rec() {
+	//recursively goes through and coalesces things until nothing else can be coalesced
+	void * prev_check;
+	void * check = first_free;
+	int size;
+	int offset;
+	read_header(check, &size, &offset);
+	int loc;
+	int total;
+	int change = 0;
+	while(total<HEAPSIZE && offset!=0) {
+		prev_check = check;
+		check = check + offset;
+		total = check - heap_begin;
+		read_header(check, &size, &offset);
+		loc = buddy_loc(size, total);
+		if(loc!=0) { //second buddy
+			if((check-size)==prev_check) { //if two buddies are free
+				int new_offset;
+				if(offset!=0) {
+					new_offset = offset + size; //offset of prev_check was
+					//size, so getting total offset
+				}
+				else {
+					new_offset = 0;
+				}
+				check = prev_check;
+				write_header(check, size*2, new_offset);
+				change = 1;
+				//as the two buddies had same size, new size is just size*2
+			}
+		}
+	}
+	if(change==1) {
+		coalesce_rec(); //if there were changes, possibility that more opportunities
+		//to coalesce appeared
+	}
+}
+
 
 //Shreeya and Carrie
 void free(void *memory_block) {
@@ -184,6 +224,7 @@ void free(void *memory_block) {
 		first_free = memory_block;
 		//printf("location c: memory map: \n");
 		//dump_memory_map();
+		coalesce_rec();
 		return;   
 	}
 //have to go to right of first_free
@@ -194,6 +235,7 @@ void free(void *memory_block) {
 		*(((int *)memory_block)+1) = 0; //update offset of memory block
 		//printf("location d: memory map: \n");
 		//dump_memory_map();
+		coalesce_rec();
 		return;
 	}
 	void *free_list = first_free;
@@ -214,6 +256,7 @@ void free(void *memory_block) {
 	*(((int *)memory_block)+1) = (-1)*change; //offset between block and free_list		
 	//printf("end of free.  Memory map: \n");
 	//dump_memory_map();
+	coalesce_rec();
 }
 
 
