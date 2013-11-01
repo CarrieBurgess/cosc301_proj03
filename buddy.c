@@ -49,7 +49,7 @@ static void read_header(void *p, int *size, int *offset) {
 	*offset = *(((int *)p) + 1);
 }
 	
-//Shreeya and ever so minorly Carrie
+//Shreeya
 static void *malloc_rec(int size, void *free_list) { 
 	//recursively attempt to malloc free space over the free list 
 	//if successful malloc address of malloced space else return NULL
@@ -101,7 +101,6 @@ void *malloc(size_t request_size) {
     // time that malloc has been called.  ask for a new
     // heap segment from the OS using mmap and initialize
     // the heap begin pointer.
-    printf("entering malloc\n");
    if((request_size<MINIMUM_ALLOC)||(request_size>HEAPSIZE)) { //cannot be allocated
     	return NULL;
     }
@@ -126,6 +125,9 @@ void *malloc(size_t request_size) {
 
 //Carrie
 int buddy_loc(int block_size, int total) { //finds if buddy of block to be free is before or after block.  block_size should be size of memory_block
+	if(block_size==0) {
+		return -1;
+	}
 	int ans = (total/block_size)%2;
 	if(ans==0) { //if even, its the first buddy
 		return 0;
@@ -140,29 +142,40 @@ void coalesce_rec() {
 	void * check = first_free;
 	int size;
 	int offset;
+	int size_prev;
+	int offset_prev;
 	read_header(check, &size, &offset);
 	int loc;
 	int total;
 	int change = 0;
-	while(total<HEAPSIZE && offset!=0) {
+	while(offset!=0) {
 		prev_check = check;
-		check = check + offset;
+		check = check + offset; //looking at next free block
 		total = check - heap_begin;
+	//	printf("total: %d\n", total);
 		read_header(check, &size, &offset);
-		loc = buddy_loc(size, total);
-		if(loc!=0) { //second buddy
-			if((check-size)==prev_check) { //if two buddies are free
-				int new_offset;
+		read_header(prev_check, &size_prev, &offset_prev);
+		if(((check-size)==prev_check) && (size_prev == offset_prev)) { //if two buddies are free
+	//		printf("size: %d\n", size);
+			loc = buddy_loc(size, total);
+			
+			if(loc==-1) { //trying to divide by zero.
+				printf("Error: improper sizing.\n");
+				change = 0;
+				break;
+			}
+			if(loc==1) { //second buddy
 				if(offset!=0) {
-					new_offset = offset + size; //offset of prev_check was
+					offset = offset + size; //offset of prev_check was
 					//size, so getting total offset
 				}
-				else {
-					new_offset = 0;
-				}
 				check = prev_check;
-				write_header(check, size*2, new_offset);
+				write_header(check, size*2, offset);
+				read_header(check, &size, &offset);
 				change = 1;
+				if(offset==0) {
+					break;
+				}
 				//as the two buddies had same size, new size is just size*2
 			}
 		}
@@ -186,8 +199,6 @@ void free(void *memory_block) {
 	memory_block = memory_block -8; //block returned points to after header
 	while(total<HEAPSIZE) { //find the matching block
 		read_header(elem, &size, &offset);
-		//printf("Elem: %p\n", elem);
-		//printf("memory_block: %p\n", memory_block);
 		if (elem==memory_block) {
 			position = total;
 			break;
@@ -195,35 +206,22 @@ void free(void *memory_block) {
 		elem = elem + size;
 		total = total + size;
 	}
-//	printf("entering free. memory map\n");
-//	dump_memory_map();
 	if (position==-1) { //no match else match is (heap_begin+position)
 //next update the free list
 		printf("There was no matching element found.\n");
-		//printf("location a.  memory map: \n");
-		//dump_memory_map();
 		return;
 	}	
 	read_header(first_free, &size, &offset);
-	//int displacement = (char*)first_free - (char*)memory_block;
-	//C: I don't quite understand this line.
 	int displacement = (char*)memory_block - (char*)first_free; //how far address is from
-	//printf("First free: %p\n", first_free);
-	//printf("memory_block: %p\n", memory_block);
 	//1st free element
 	//C: isn't this the same as total?
-	//printf("Displacement: %d\n", displacement);
 	if (displacement==0) { //base case: already free
 		printf("The block has already been freed.\n");
-		//printf("location b: memory map: \n");
-		//dump_memory_map();
 		return;
 	}
 	if (displacement<0) {//base case: have to update first_free if first_free is after memory_block
 		*(((int *)memory_block)+1) = (-1)*displacement; //update offset of memory block
 		first_free = memory_block;
-		//printf("location c: memory map: \n");
-		//dump_memory_map();
 		coalesce_rec();
 		return;   
 	}
@@ -233,8 +231,6 @@ void free(void *memory_block) {
 		displacement = (-1)*displacement;
 		write_header(first_free, size, displacement);
 		*(((int *)memory_block)+1) = 0; //update offset of memory block
-		//printf("location d: memory map: \n");
-		//dump_memory_map();
 		coalesce_rec();
 		return;
 	}
@@ -246,16 +242,12 @@ void free(void *memory_block) {
 		free_list = free_list + offset;
 		read_header(free_list, &size, &offset);
 		change = (char*)memory_block - (char*)free_list;
-		//printf("location e: memory map: \n");
-		//dump_memory_map();
 		if (change==0) return; //block free
 		if (change<0) break; //block to the left of free_list, right of old_free		 
 	}
 	int old_offset = *(((int *)old_free)+1); //offset of old_free->distance to free_list
 	*(((int *)old_free)+1) = old_offset + change; //offset between old_free and block
 	*(((int *)memory_block)+1) = (-1)*change; //offset between block and free_list		
-	//printf("end of free.  Memory map: \n");
-	//dump_memory_map();
 	coalesce_rec();
 }
 

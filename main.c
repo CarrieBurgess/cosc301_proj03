@@ -27,5 +27,10 @@ int main(int argc, char **argv) {
     void *m5 = malloc(30);  // should allocate 64 bytes
     void *m6 = malloc(120); // should allocate 128 bytes
     free(m2);
+    free(m4);
+    dump_memory_map();
+    free(m5);
+    dump_memory_map();
+    free(m6);
     return 0;
 }
