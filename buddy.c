@@ -136,6 +136,7 @@ int buddy_loc(int block_size, int total) { //finds if buddy of block to be free 
 	return 1; //if odd, its the second buddy
 }
 
+
 //Carrie
 void coalesce_rec() { //okay so not really recursive, but was going to do it that way,
 //so named it that way
